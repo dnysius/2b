@@ -22,3 +22,5 @@ def resolve_columns_with_tables(query: str, schema_csv: str):
         columns.append(f"{table}.{col.name}")
 
     return columns
+query = "SELECT a.col1, col2, b.col3 FROM a1 a JOIN b1 b ON a.col = b.col"
+print(resolve_columns_with_tables(query, "your_schema.csv"))

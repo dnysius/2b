@@ -7,9 +7,9 @@ def load_schema_from_csv(path):
     with open(path, newline='') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            table = row['table_name'].lower()
+            full_table = f"{row['table_schema'].lower()}.{row['table_name'].lower()}"
             column = row['column_name'].lower()
-            schema.setdefault(table, set()).add(column)
+            schema.setdefault(full_table, set()).add(column)
     return schema
 
 def resolve_columns_with_tables(query: str, schema_csv: str):
@@ -18,11 +18,14 @@ def resolve_columns_with_tables(query: str, schema_csv: str):
 
     aliases = {}
     for table in parsed.find_all(Table):
-        real_name = table.name.lower()
+        name = table.name.lower()
+        full_table_matches = [t for t in schema if t.endswith(f".{name}")]
+        full_name = full_table_matches[0] if full_table_matches else name
+
         if table.alias:
-            aliases[table.alias.lower()] = real_name
+            aliases[table.alias.lower()] = full_name
         else:
-            aliases[real_name] = real_name
+            aliases[name] = full_name
 
     resolved = []
     for col in parsed.find_all(Column):
@@ -32,11 +35,9 @@ def resolve_columns_with_tables(query: str, schema_csv: str):
         if alias:
             resolved_table = aliases.get(alias, alias)
         else:
-            # Search for col_name in all known tables (only one match)
-            candidates = [t for t, cols in schema.items() if col_name in cols]
-            resolved_table = candidates[0] if len(candidates) == 1 else "UNKNOWN"
+            # Search all tables for the column
+            matches = [t for t, cols in schema.items() if col_name in cols]
+            resolved_table = matches[0] if len(matches) == 1 else "UNKNOWN"
 
         resolved.append(f"{resolved_table}.{col.name}")
     return resolved
-query = "SELECT a.col1, col2, b.col3 FROM a1 a JOIN b1 b ON a.col = b.col"
-print(resolve_columns_with_tables(query, "your_schema.csv"))
